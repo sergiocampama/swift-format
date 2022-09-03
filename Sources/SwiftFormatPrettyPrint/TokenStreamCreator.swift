@@ -23,7 +23,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
   private var afterMap = [TokenSyntax: [[Token]]]()
   private let config: Configuration
   private let operatorContext: OperatorContext
-  private let maxlinelength: Int
+  // private let maxlinelength: Int
 
   /// The index of the most recently appended break, or nil when no break has been appended.
   private var lastBreakIndex: Int? = nil
@@ -61,7 +61,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
   init(configuration: Configuration, operatorContext: OperatorContext) {
     self.config = configuration
     self.operatorContext = operatorContext
-    self.maxlinelength = config.lineLength
+    // self.maxlinelength = config.lineLength
     super.init(viewMode: .sourceAccurate)
   }
 
@@ -314,7 +314,8 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
       attributes: node.attributes,
       genericWhereClause: node.genericWhereClause,
       body: node.body,
-      bodyContentsKeyPath: \.statements)
+      bodyContentsKeyPath: \.statements,
+      openBraceNewlineBehavior: .soft)
 
     return .visitChildren
   }
@@ -431,12 +432,17 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
     attributes: AttributeListSyntax?,
     genericWhereClause: GenericWhereClauseSyntax?,
     body: Node?,
-    bodyContentsKeyPath: KeyPath<Node, BodyContents>?
+    bodyContentsKeyPath: KeyPath<Node, BodyContents>?,
+    openBraceNewlineBehavior: NewlineBehavior = .elective
   ) where BodyContents.Element: SyntaxProtocol {
     before(node.firstToken, tokens: .open)
 
     arrangeAttributeList(attributes)
-    arrangeBracesAndContents(of: body, contentsKeyPath: bodyContentsKeyPath)
+    arrangeBracesAndContents(
+      of: body,
+      contentsKeyPath: bodyContentsKeyPath,
+      openBraceNewlineBehavior: openBraceNewlineBehavior
+    )
 
     if let genericWhereClause = genericWhereClause {
       before(genericWhereClause.firstToken, tokens: .break(.same), .open)
@@ -477,7 +483,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
       }
     }
 
-    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
+    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements, openBraceNewlineBehavior: .soft)
     return .visitChildren
   }
 
@@ -510,7 +516,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
       after(condition.lastToken, tokens: .break(.close(mustBreak: false), size: 0))
     }
 
-    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
+    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements, openBraceNewlineBehavior: .soft)
 
     if let elseKeyword = node.elseKeyword {
       // Add a token before the else keyword. Breaking before `else` is explicitly allowed when
@@ -532,7 +538,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
       }
     }
 
-    arrangeBracesAndContents(of: node.elseBody?.as(CodeBlockSyntax.self), contentsKeyPath: \.statements)
+    arrangeBracesAndContents(of: node.elseBody?.as(CodeBlockSyntax.self), contentsKeyPath: \.statements, openBraceNewlineBehavior: .soft)
 
     return .visitChildren
   }
@@ -734,6 +740,12 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
     return .visitChildren
   }
 
+  override func visit(_ node: SwitchDefaultLabelSyntax) -> SyntaxVisitorContinueKind {
+    after(node.colon, tokens: .break(.continue, size: 0, newlines: .soft))
+    closingDelimiterTokens.insert(node.colon)
+    return .visitChildren
+  }
+
   override func visit(_ node: SwitchCaseLabelSyntax) -> SyntaxVisitorContinueKind {
     before(node.caseKeyword, tokens: .open)
     after(node.caseKeyword, tokens: .space)
@@ -757,7 +769,7 @@ fileprivate final class TokenStreamCreator: SyntaxVisitor {
       }
     }
 
-    after(node.colon, tokens: .close)
+    after(node.colon, tokens: .close, .break(.continue, size: 0, newlines: .soft))
     closingDelimiterTokens.insert(node.colon)
     return .visitChildren
   }

@@ -49,43 +49,63 @@ final class FunctionDeclTests: PrettyPrintTestCase {
   func testBasicFunctionDeclarations_packArguments() {
     let input =
       """
-      func myFun(var1: Int, var2: Double) {
-        print("Hello World")
-        let a = 23
+      import Foundation
+
+      class Hello {
+        var something: Int { get { print() } didSet { print(something) } }
+        func hello() {
+          print(1234) { [unowned self] something, peter, paul in print(123) }
+      
+          print(123)
+        }
       }
-      func reallyLongName(var1: Int, var2: Double, var3: Bool) {
-        print("Hello World")
-        let a = 23
+
+      class GoodBye: Hello {
+        override func hello() {if true {
+            print(123)
+          } else if false {
+            print(1234)
+          } else {print(1234)} }
+        func caca() {
+          switch 1234 {
+          case 123: break
+          case 456: print(123); print(345)
+          default: break
+          }
+        }
       }
-      func myFun() {
-        let a = 23
-      }
-      func myFun() { let a = "AAAA BBBB CCCC DDDD EEEE FFFF" }
+
       """
 
     let expected =
       """
-      func myFun(var1: Int, var2: Double) {
-        print("Hello World")
-        let a = 23
+      import Foundation
+
+      class Hello {
+        func hello() {
+          print(1234)
+          print(123)
+        }
       }
-      func reallyLongName(
-        var1: Int, var2: Double, var3: Bool
-      ) {
-        print("Hello World")
-        let a = 23
-      }
-      func myFun() {
-        let a = 23
-      }
-      func myFun() {
-        let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
+
+      class GoodBye: Hello {
+        override func hello() {
+          if true {
+            print(123)
+          } else if false {
+            print(1234)
+          } else {
+           print(1234)
+          }
+        }
       }
 
       """
 
     var config = Configuration()
     config.lineBreakBeforeEachArgument = false
+    config.respectsExistingLineBreaks = false
+    config.indentSwitchCaseLabels = false
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50, configuration: config)
   }
 
